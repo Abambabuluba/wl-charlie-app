@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WL Accessory & Diagnostics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Kalam:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>WL Accessorizer</h1>
+        <p class="subtitle">Análisis de Ratios y Rutinas Correctivas</p>
+
+        <!-- Panel de Récords -->
+        <h2 class="section-title">1. Contexto de Fuerza (RMs en kg)</h2>
+        <div class="form-grid">
+            <div class="form-group"><label>Snatch</label><input type="number" id="rm-snatch" value="70"></div>
+            <div class="form-group"><label>Clean</label><input type="number" id="rm-clean" value="95"></div>
+            <div class="form-group"><label>Jerk</label><input type="number" id="rm-jerk" value="80"></div>
+            <div class="form-group"><label>Back Squat</label><input type="number" id="rm-bs" value="140"></div>
+            <div class="form-group"><label>Front Squat</label><input type="number" id="rm-fs" value="100"></div>
+            <div class="form-group"><label>Deadlift</label><input type="number" id="rm-dl" value="155"></div>
+            <div class="form-group"><label>Strict Press</label><input type="number" id="rm-press" value="70"></div>
+            <div class="form-group"><label>OHS</label><input type="number" id="rm-ohs" value="70"></div>
+        </div>
+
+        <!-- Selector de Debilidades -->
+        <h2 class="section-title">2. Análisis Técnico</h2>
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+                <label>Movimiento</label>
+                <select id="lift-select">
+                    <option value="" disabled selected>-- Selecciona un levantamiento --</option>
+                    <option value="snatch">Snatch</option>
+                    <option value="clean">Clean</option>
+                    <option value="jerk">Jerk</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Punto de fallo / Debilidad</label>
+                <select id="weakness-select" disabled>
+                    <option value="" disabled selected>-- Selecciona primero --</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn" id="generate-btn">Analizar y Generar Rutina</button>
+
+        <!-- Área de Resultados -->
+        <div id="results-container">
+            <div class="diagnostic-box" id="diagnostic-box">
+                <div class="diagnostic-title">⚡ Diagnóstico de Ratios:</div>
+                <div id="diagnostic-content"></div>
+            </div>
+
+            <h2 class="section-title">Ejercicios Correctivos Recomendados</h2>
+            <div id="exercise-list"></div>
+
+            <!-- Contenedor Pizarra Rutina Mensual -->
+            <div id="routine-board" style="display: none;">
+                <div class="board-header">
+                    <h2>Charlie Corrective Routine</h2>
+                    <p>4-Week Progression Plan</p>
+                </div>
+                <div id="weeks-container"></div>
+                
+                <button id="download-csv-btn" class="btn" style="margin-top: 2rem; background: linear-gradient(135deg, #10b981, #059669);"><span style="font-size:1.2rem;">📥</span> Descargar Rutina (CSV)</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
