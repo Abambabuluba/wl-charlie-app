@@ -250,13 +250,59 @@ select option { background-color: var(--bg-dark); }
 .prescription-weight { color: var(--primary); font-weight: 800; font-size: 1.4rem; }
 
 @media (max-width: 768px) {
-    body { padding: 1rem; }
-    .container { padding: 1.5rem; }
+    body { padding: 0.75rem; }
+    .container { padding: 1.2rem; border-radius: 12px; }
+
+    /* Títulos */
+    h1 { font-size: 1.7rem; }
+    .subtitle { font-size: 0.95rem; }
+    .section-title { font-size: 1.05rem; }
+
+    /* Panel de atleta */
+    .athlete-panel {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    .score-display {
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+    }
+    .score-box { flex: 1; padding: 0.6rem 1rem; }
+    .score-val { font-size: 1.4rem; }
+
+    /* Grid de inputs RMs: 2 columnas en móvil */
+    .form-grid { grid-template-columns: repeat(2, 1fr); gap: 0.8rem; }
+
+    /* Dashboard: una columna */
+    .dashboard-grid { grid-template-columns: 1fr; gap: 1.2rem; }
+    .radar-box { min-height: 260px; }
+
+    /* Selector debilidades */
+    .form-grid[style*="1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+    /* Accessory cards */
     .accessory-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
     .accessory-info { padding-left: 0; }
     .prescription { margin-left: 0; text-align: left; width: 100%; display: flex; flex-direction: row; justify-content: space-between; align-items: center;}
     .prescription-weight { font-size: 1.2rem; }
-    h1 { font-size: 2rem; }
+
+    /* Pizarra: una columna */
+    .sessions-grid { grid-template-columns: 1fr; gap: 1.2rem; }
+    #routine-board { padding: 1.2rem; border-width: 4px; }
+    .board-header h2 { font-size: 1.8rem; }
+    .sticky-note { transform: none !important; font-size: 1.1rem; }
+    .sticky-note:nth-child(even) { transform: none !important; }
+    .session-title { font-size: 1.4rem; }
+
+    /* Modal */
+    .modal-box { padding: 1.5rem; }
+
+    /* Botón PDF */
+    #download-pdf-btn { font-size: 0.9rem; padding: 1rem; }
 }
 
 /* --- WHITEBOARD & STICKY NOTES --- */
@@ -425,9 +471,7 @@ select option { background-color: var(--bg-dark); }
     margin-left: 2px;
 }
 
-.exercise-details {
-    flex: 1;
-}
+.exercise-details { flex: 1; }
 
 .exercise-name {
     text-transform: uppercase;
@@ -474,4 +518,146 @@ select option { background-color: var(--bg-dark); }
 }
 .corrective-highlight:hover {
     background: rgba(255, 230, 0, 0.7);
+}
+
+/* --- NUEVAS MEJORAS PREMIUM (DASHBOARD Y MODAL) --- */
+.athlete-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+    background: rgba(0, 229, 255, 0.05);
+    padding: 1.5rem;
+    border-radius: 15px;
+    border: 1px solid rgba(0, 229, 255, 0.1);
+    align-items: center;
+}
+.score-display {
+    display: flex;
+    gap: 1.5rem;
+    margin-left: auto;
+}
+.score-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0,0,0,0.3);
+    padding: 0.8rem 1.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+}
+.score-box.highlight {
+    border-color: var(--primary);
+    background: rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+}
+.score-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 600;
+}
+.score-val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: #fff;
+    margin-top: 4px;
+}
+.score-val small { font-size: 1rem; color: #aaa; font-weight: 600; }
+
+.input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.input-wrap input { width: 100%; padding-right: 40px; }
+.magic-btn {
+    position: absolute;
+    right: 8px;
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+    filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.5));
+}
+.magic-btn:hover { transform: scale(1.2); }
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+.radar-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+}
+#radarChart {
+    max-width: 100%;
+    max-height: 350px;
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    display: flex; justify-content: center; align-items: center;
+}
+.modal-box {
+    background: var(--bg-dark);
+    border: 1px solid var(--primary);
+    padding: 2rem;
+    border-radius: 15px;
+    width: 90%; max-width: 400px;
+    box-shadow: 0 0 30px rgba(0, 229, 255, 0.2);
+}
+.modal-box h3 { color: var(--primary); margin-bottom: 0.5rem; }
+.modal-box p { color: var(--text-muted); margin-bottom: 1.5rem; }
+.modal-close-btn { background: transparent; border: 1px solid #555; color: #fff; margin-top: 0.5rem; }
+.modal-close-btn:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+
+@media (max-width: 768px) {
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .score-display { margin-left: 0; width: 100%; justify-content: space-between; margin-top: 1rem; }
+}
+
+/* Extra pequeño: teléfonos < 400px */
+@media (max-width: 400px) {
+    h1 { font-size: 1.4rem; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .score-val { font-size: 1.2rem; }
+    .score-box { padding: 0.5rem 0.6rem; }
+}
+
+/* --- ESTILOS PARA EXPORTACIÓN PDF --- */
+.pdf-export-mode {
+    background: #fff !important;
+}
+.pdf-export-mode * {
+    color: #1a1a1a !important;
+    text-shadow: none !important;
+}
+.pdf-export-mode .magic-btn,
+.pdf-export-mode .reroll-btn,
+.pdf-export-mode .diagnostic-text button {
+    display: none !important;
+}
+
+/* Efectos flash animados */
+.flash-success {
+    animation: flashGreen 0.6s ease-out;
+}
+@keyframes flashGreen {
+    0% { background-color: rgba(0, 255, 100, 0.8); box-shadow: 0 0 15px rgba(0,255,100,0.8); }
+    100% { background-color: rgba(255, 255, 255, 0.05); box-shadow: none; }
 }
