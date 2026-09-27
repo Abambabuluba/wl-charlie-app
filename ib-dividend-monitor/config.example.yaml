@@ -87,5 +87,7 @@ symbols:
 # --- Alertas ------------------------------------------------------------------
 
 alerts:
-  channel: telegram       # telegram | console
+  channel: email          # email | telegram | console
+  # smtp_host: smtp.gmail.com   # por defecto Gmail; cámbialo si usas otro proveedor
+  # smtp_port: 465
   cooldown_hours: 72      # no repetir la misma alerta antes de este plazo

@@ -76,3 +76,19 @@ def test_import_history_only_adds_transactions(tmp_path, capsys):
     assert store.conn.execute("SELECT COUNT(*) FROM position_snapshots").fetchone()[0] == positions == 6
     assert run(tmp_path, "import-history", str(FIXTURE)) == 0
     assert "Total: 0" in capsys.readouterr().out
+
+
+def test_email_channel_requires_credentials(tmp_path, monkeypatch):
+    import pytest
+
+    from divmon.alerts import make_notifier
+
+    for var in ("SMTP_USER", "SMTP_PASSWORD", "EMAIL_TO"):
+        monkeypatch.delenv(var, raising=False)
+    cfg = base_config(tmp_path, alerts={"channel": "email"})
+    with pytest.raises(RuntimeError, match="SMTP_USER"):
+        make_notifier(cfg)
+    monkeypatch.setenv("SMTP_USER", "yo@gmail.com")
+    monkeypatch.setenv("SMTP_PASSWORD", "abcd efgh ijkl mnop")
+    cfg = base_config(tmp_path, alerts={"channel": "email"})
+    assert make_notifier(cfg).to == "yo@gmail.com"

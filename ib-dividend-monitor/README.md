@@ -1,6 +1,6 @@
 # divmon: monitor de cartera de dividendos en Interactive Brokers
 
-Vigila tu cartera real de IBKR, analiza y te **propone** acciones por Telegram y en un informe semanal.
+Vigila tu cartera real de IBKR, analiza y te **propone** acciones por email (o Telegram) y en un informe semanal.
 **Nunca envía órdenes**: todas las operaciones las decides y ejecutas tú.
 
 | Función | Qué hace |
@@ -17,7 +17,7 @@ Vigila tu cartera real de IBKR, analiza y te **propone** acciones por Telegram y
 ```
 IBKR Flex Web Service ──(XML diario)──┐
 Yahoo Finance (fundamentales) ────────┼──> divmon ──> SQLite (histórico)
-IB Gateway (opcional, margen en vivo) ┘        ├──> Telegram (alertas)
+IB Gateway (opcional, margen en vivo) ┘        ├──> Email o Telegram (alertas)
                                                └──> Informe HTML/PDF semanal
 ```
 
@@ -44,7 +44,7 @@ Extras opcionales: `pip install -e ".[pdf]"` para informes en PDF y `pip install
 
 ## 1. Probar sin tocar tu cuenta
 
-El repositorio incluye un informe Flex ficticio. En `config.yaml` pon `alerts.channel: console` y ejecuta:
+El repositorio incluye un informe Flex ficticio. En `config.yaml` pon `alerts.channel: console` (así nada sale de tu ordenador) y ejecuta:
 
 ```bash
 divmon daily --xml tests/fixtures/flex_sample.xml --dry-run   # análisis y alertas por pantalla
@@ -73,7 +73,7 @@ Configuración de entrega:
 - Periodo **Last 365 Calendar Days**.
 - Formato de fecha **yyyyMMdd**, formato de hora **HHmmss** y separador **;**.
 
-Después, en **Flex Queries → Flex Web Service Configuration**, activa el servicio y genera un **token**. Copia el token y el **Query ID** (aparece en la lista de consultas) en `.env`. El token caduca, como mucho, al cabo de un año. Cuando caduque, divmon te avisará por Telegram.
+Después, en **Flex Queries → Flex Web Service Configuration**, activa el servicio y genera un **token**. Copia el token y el **Query ID** (aparece en la lista de consultas) en `.env`. El token caduca, como mucho, al cabo de un año. Cuando caduque, divmon te avisará por el canal de alertas que uses.
 
 La primera ejecución carga el último año de dividendos. Para cargar años anteriores, descarga informes de esos años desde el Portal (periodo personalizado) e impórtalos:
 
@@ -81,7 +81,27 @@ La primera ejecución carga el último año de dividendos. Para cargar años ant
 divmon import-history cobros-2023.xml cobros-2024.xml
 ```
 
-## 3. Crear el bot de Telegram
+## 3. Alertas por email (Gmail)
+
+Gmail no deja usar tu contraseña normal desde programas: hace falta una **contraseña de aplicación**. Solo sirve para enviar correo y la puedes revocar cuando quieras.
+
+1. Activa la **verificación en dos pasos** en tu cuenta de Google (myaccount.google.com → Seguridad), si no la tienes ya.
+2. Entra en **myaccount.google.com/apppasswords**, escribe un nombre (por ejemplo `divmon`) y pulsa **Crear**.
+3. Google te muestra una contraseña de 16 letras. Cópiala: solo se enseña una vez.
+4. En `.env` pon:
+   ```
+   SMTP_USER=tu_correo@gmail.com
+   SMTP_PASSWORD=la contraseña de 16 letras
+   EMAIL_TO=tu_correo@gmail.com
+   ```
+5. En `config.yaml` deja `alerts.channel: email` y prueba con:
+   ```bash
+   divmon test-notify
+   ```
+
+Todas las alertas de una ejecución llegan en un solo correo. El asunto empieza por 🔴 si alguna es crítica. El informe semanal llega adjunto al correo del resumen.
+
+## 3 bis. Alternativa: bot de Telegram
 
 1. En Telegram, abre **@BotFather** y envía `/newbot`.
 2. Elige un nombre y un usuario que termine en `bot` (por ejemplo `micartera_alertas_bot`). BotFather te dará un **token** del tipo `123456:ABC-...`.
@@ -90,7 +110,7 @@ divmon import-history cobros-2023.xml cobros-2024.xml
 5. Pon `TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID` en `.env`, pon `alerts.channel: telegram` en `config.yaml` y prueba con:
 
 ```bash
-divmon test-telegram
+divmon test-notify
 ```
 
 El bot solo escribe a tu `chat_id`. No compartas el token: quien lo tenga puede enviar mensajes en nombre del bot, aunque no puede tocar tu cuenta de IBKR.
@@ -112,12 +132,12 @@ Todo está comentado en `config.example.yaml`. Lo principal:
 | Comando | Para qué |
 |---|---|
 | `divmon daily [--dry-run]` | Descarga el Flex, analiza, guarda el histórico y envía las alertas nuevas |
-| `divmon report [--send] [--pdf]` | Genera el informe semanal y, con `--send`, lo envía por Telegram |
+| `divmon report [--send] [--pdf]` | Genera el informe semanal y, con `--send`, lo envía por email o Telegram |
 | `divmon summary` | Resumen por pantalla con posiciones y radar |
 | `divmon plan [--aportacion 600]` | Tabla de meses hasta deuda cero según la aportación |
 | `divmon margin-live [--dry-run]` | Margen exacto vía IB Gateway (opcional) |
 | `divmon import-history FICHEROS...` | Carga cobros antiguos |
-| `divmon test-telegram` | Mensaje de prueba |
+| `divmon test-notify` | Mensaje de prueba por el canal configurado |
 
 Las alertas no se repiten antes de `alerts.cooldown_hours` (72 h por defecto). El radar solo avisa cuando cambia el estado de un valor.
 

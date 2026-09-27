@@ -106,9 +106,9 @@ def cmd_report(cfg: Config, args) -> int:
     path = write_report(cfg, analysis, store, pdf=args.pdf)
     print(f"Informe generado: {path}")
     if args.send:
-        notifier = make_notifier(cfg)
-        notifier.send(format_summary(cfg, analysis))
-        notifier.send_file(path, caption=f"Informe semanal {stmt.report_date:%d/%m/%Y}")
+        make_notifier(cfg).send_report(
+            format_summary(cfg, analysis), path, subject=f"Informe semanal de cartera {stmt.report_date:%d/%m/%Y}"
+        )
     return 0
 
 
@@ -185,8 +185,8 @@ def cmd_import_history(cfg: Config, args) -> int:
     return 0
 
 
-def cmd_test_telegram(cfg: Config, args) -> int:
-    make_notifier(cfg).send("✅ divmon conectado. Aquí recibirás las alertas de tu cartera.")
+def cmd_test_notify(cfg: Config, args) -> int:
+    make_notifier(cfg).send("<b>divmon conectado</b>\n\n✅ Aquí recibirás las alertas de tu cartera.")
     print("Mensaje de prueba enviado.")
     return 0
 
@@ -217,7 +217,8 @@ def main(argv: list[str] | None = None) -> int:
     add("margin-live", cmd_margin_live, "comprobar el margen en tiempo real con IB Gateway", xml=False, dry=True)
     hp = add("import-history", cmd_import_history, "importar el histórico de cobros de informes Flex antiguos", xml=False)
     hp.add_argument("files", nargs="+", type=Path, help="archivos XML de Flex")
-    add("test-telegram", cmd_test_telegram, "enviar un mensaje de prueba", xml=False)
+    add("test-notify", cmd_test_notify, "enviar un mensaje de prueba por el canal configurado", xml=False)
+    add("test-telegram", cmd_test_notify, "alias de test-notify", xml=False)
 
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO, format="%(levelname)s %(message)s")

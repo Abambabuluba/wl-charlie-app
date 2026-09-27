@@ -5,7 +5,7 @@ CRON_TZ=Europe/Madrid
 # Martes a sábado 07:40: descarga el Flex del día hábil anterior, analiza, guarda y alerta.
 40 7 * * 2-6  /ruta/a/ib-dividend-monitor/deploy/run.sh daily
 
-# Sábado 09:10: informe semanal por Telegram (usa solo lo guardado, no necesita IBKR).
+# Sábado 09:10: informe semanal por email o Telegram (usa solo lo guardado, no necesita IBKR).
 10 9 * * 6    /ruta/a/ib-dividend-monitor/deploy/run.sh report --send
 
 # Solo si activas IB Gateway: margen en tiempo real cada 30 min en horario de mercado.

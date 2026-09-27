@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import html
 import logging
+import re
+import smtplib
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 from pathlib import Path
 from typing import Protocol
 
@@ -146,15 +149,15 @@ def radar_alerts(changes: list[Transition], cfg: Config, stmt: Statement, margin
 
 class Notifier(Protocol):
     def send(self, text: str) -> None: ...
-    def send_file(self, path: Path, caption: str = "") -> None: ...
+    def send_report(self, summary: str, path: Path, subject: str) -> None: ...
 
 
 class ConsoleNotifier:
     def send(self, text: str) -> None:
         print(text)
 
-    def send_file(self, path: Path, caption: str = "") -> None:
-        print(f"[archivo] {path} {caption}")
+    def send_report(self, summary: str, path: Path, subject: str) -> None:
+        print(f"{subject}\n{summary}\n[archivo] {path}")
 
 
 class TelegramNotifier:
@@ -172,15 +175,56 @@ class TelegramNotifier:
             )
             _check(resp)
 
-    def send_file(self, path: Path, caption: str = "") -> None:
+    def send_report(self, summary: str, path: Path, subject: str) -> None:
+        self.send(html.escape(summary))
         with open(path, "rb") as fh:
             resp = self.http.post(
                 f"{self.base}/sendDocument",
-                data={"chat_id": self.chat_id, "caption": caption[:1000]},
+                data={"chat_id": self.chat_id, "caption": subject[:1000]},
                 files={"document": (path.name, fh)},
                 timeout=60,
             )
         _check(resp)
+
+
+class EmailNotifier:
+    """Correo por SMTP con SSL. Con Gmail se usa una contraseña de aplicación, no la de la cuenta."""
+
+    def __init__(self, host: str, port: int, user: str, password: str, to: str, smtp_factory=smtplib.SMTP_SSL):
+        self.host, self.port, self.user, self.password, self.to = host, port, user, password, to
+        self.smtp_factory = smtp_factory
+
+    def send(self, text: str) -> None:
+        first = re.sub(r"<[^>]+>", "", text.split("\n", 1)[0])
+        self._deliver(html.unescape(first) or "divmon", text)
+
+    def send_report(self, summary: str, path: Path, subject: str) -> None:
+        self._deliver(subject, html.escape(summary), attachment=path)
+
+    def _deliver(self, subject: str, html_body: str, attachment: Path | None = None) -> None:
+        msg = EmailMessage()
+        msg["Subject"] = subject[:150]
+        msg["From"] = self.user
+        msg["To"] = self.to
+        plain = html.unescape(re.sub(r"<[^>]+>", "", html_body))
+        msg.set_content(plain)
+        msg.add_alternative(
+            '<div style="font-family:sans-serif;font-size:14px;line-height:1.5">'
+            + html_body.replace("\n", "<br>") + "</div>",
+            subtype="html",
+        )
+        if attachment:
+            msg.add_attachment(Path(attachment).read_bytes(), maintype="text", subtype="html",
+                               filename=Path(attachment).name)
+        try:
+            with self.smtp_factory(self.host, self.port, timeout=30) as smtp:
+                smtp.login(self.user, self.password)
+                smtp.send_message(msg)
+        except smtplib.SMTPAuthenticationError as exc:
+            raise RuntimeError(
+                "El servidor de correo rechazó el usuario o la contraseña. Con Gmail necesitas una "
+                "contraseña de aplicación (ver README)."
+            ) from exc
 
 
 def _check(resp: requests.Response) -> None:
@@ -199,11 +243,16 @@ def _chunks(text: str, size: int) -> list[str]:
 
 
 def make_notifier(cfg: Config) -> Notifier:
-    if cfg.alerts.channel == "console":
+    a = cfg.alerts
+    if a.channel == "console":
         return ConsoleNotifier()
-    if not cfg.alerts.telegram_token or not cfg.alerts.telegram_chat_id:
+    if a.channel == "email":
+        if not a.smtp_user or not a.smtp_password:
+            raise RuntimeError("Faltan SMTP_USER / SMTP_PASSWORD en .env (o usa alerts.channel: console)")
+        return EmailNotifier(a.smtp_host, a.smtp_port, a.smtp_user, a.smtp_password, a.email_to or a.smtp_user)
+    if not a.telegram_token or not a.telegram_chat_id:
         raise RuntimeError("Faltan TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID en .env (o usa alerts.channel: console)")
-    return TelegramNotifier(cfg.alerts.telegram_token, cfg.alerts.telegram_chat_id)
+    return TelegramNotifier(a.telegram_token, a.telegram_chat_id)
 
 
 def dispatch(
@@ -224,7 +273,8 @@ def dispatch(
     if not fresh:
         return []
     fresh.sort(key=lambda a: a.severity != CRITICAL)
-    lines = [f"<b>{html.escape(title)}</b>"]
+    heading = f"{'🔴 ' if fresh[0].severity == CRITICAL else ''}{title}: {len(fresh)} aviso{'s' if len(fresh) > 1 else ''}"
+    lines = [f"<b>{html.escape(heading)}</b>"]
     lines += [f"{'🔴' if a.severity == CRITICAL else '•'} {html.escape(a.text)}" for a in fresh]
     notifier.send("\n\n".join(lines))
     for a in fresh:

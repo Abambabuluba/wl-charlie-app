@@ -116,6 +116,11 @@ class AlertsConfig:
     cooldown_hours: float = 72
     telegram_token: str | None = None
     telegram_chat_id: str | None = None
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 465
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    email_to: str | None = None
 
 
 @dataclass
@@ -201,6 +206,9 @@ def config_from_dict(raw: dict[str, Any], base_dir: Path = Path(".")) -> Config:
     alerts = _build(AlertsConfig, raw.pop("alerts", None), "alerts")
     alerts.telegram_token = alerts.telegram_token or os.getenv("TELEGRAM_BOT_TOKEN") or None
     alerts.telegram_chat_id = alerts.telegram_chat_id or os.getenv("TELEGRAM_CHAT_ID") or None
+    alerts.smtp_user = alerts.smtp_user or os.getenv("SMTP_USER") or None
+    alerts.smtp_password = alerts.smtp_password or os.getenv("SMTP_PASSWORD") or None
+    alerts.email_to = alerts.email_to or os.getenv("EMAIL_TO") or alerts.smtp_user
 
     data_dir = Path(raw.pop("data_dir", "data"))
     if not data_dir.is_absolute():
@@ -222,8 +230,8 @@ def config_from_dict(raw: dict[str, Any], base_dir: Path = Path(".")) -> Config:
     )
     if raw:
         raise ConfigError(f"Secciones desconocidas en config.yaml: {', '.join(sorted(raw))}")
-    if cfg.alerts.channel not in {"telegram", "console"}:
-        raise ConfigError("alerts.channel debe ser 'telegram' o 'console'")
+    if cfg.alerts.channel not in {"telegram", "email", "console"}:
+        raise ConfigError("alerts.channel debe ser 'telegram', 'email' o 'console'")
     if cfg.fundamentals.provider not in {"yahoo", "none"}:
         raise ConfigError("fundamentals.provider debe ser 'yahoo' o 'none'")
     return cfg
