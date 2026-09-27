@@ -17,6 +17,7 @@ EXCHANGE_SUFFIX = {
     "SBF": ".PA", "ENEXT.BE": ".BR", "AEB": ".AS",
     "BVME": ".MI", "LSE": ".L", "LSEETF": ".L",
     "EBS": ".SW", "VIRTX": ".SW",
+    "N.VILNIUS": ".VS", "N.TALLINN": ".TL", "N.RIGA": ".RG",
     "BVL": ".LS", "SFB": ".ST", "CPH": ".CO", "OSE": ".OL", "HEX": ".HE",
     "TSE": ".TO", "VENTURE": ".V", "ASX": ".AX", "SEHK": ".HK", "SGX": ".SI",
 }

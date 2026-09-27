@@ -13,6 +13,7 @@ from divmon.sources.fundamentals import Fundamentals, YahooProvider, _yield, yah
     ("BATS", "LSE", "BATS.L"),
     ("BRK B", "NYSE", "BRK-B"),
     ("MO", None, "MO"),
+    ("IGN1L", "N.VILNIUS", "IGN1L.VS"),
 ])
 def test_yahoo_symbol(symbol, exchange, expected):
     assert yahoo_symbol(symbol, exchange) == expected
