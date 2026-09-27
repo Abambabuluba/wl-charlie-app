@@ -1,0 +1,91 @@
+# Copia este archivo a config.yaml y ajústalo.
+# Los porcentajes se escriben en tanto por uno: 0.05 = 5 %.
+
+base_currency: EUR
+data_dir: data            # SQLite, XML de Flex archivados e informes
+
+# --- Fuentes de datos ---------------------------------------------------------
+
+flex:
+  enabled: true           # token y query id van en .env
+
+ib_gateway:               # opcional: margen exacto en tiempo real vía IB Gateway
+  enabled: false
+  host: 127.0.0.1
+  port: 4002              # 4002 = paper trading, 4001 = cuenta real
+  client_id: 17
+
+fundamentals:
+  provider: yahoo         # yahoo | none
+  max_age_days: 7         # la cartera se mueve poco: basta con refrescar semanalmente
+
+# --- Criterios de compra (radar) ----------------------------------------------
+# Deja un criterio en null para no aplicarlo.
+
+criteria:
+  per_max: 15
+  dividend_yield_min: 0.045
+  payout_max: 0.80
+  debt_ebitda_max: 3.5
+
+# --- Margen ---------------------------------------------------------------------
+
+margin:
+  # Tipo anual que te cobra IBKR por divisa (benchmark + diferencial de tu tramo).
+  # Consulta los actuales en interactivebrokers.com → Tipos de interés de margen.
+  interest_rates:
+    EUR: 0.045
+    USD: 0.060
+    GBP: 0.060
+  # Margen de mantenimiento estimado cuando no hay IB Gateway.
+  # IBKR suele pedir un 25 % en acciones; algunas europeas o de poca liquidez piden más.
+  maintenance_rate_default: 0.25
+  alerts:
+    loan_to_value_max: 0.30   # préstamo / valor de las posiciones
+    cushion_min: 0.25         # exceso de liquidez / valor liquidativo
+    drop_to_call_min: 0.40    # caída uniforme de la cartera que provocaría margin call
+
+# --- Concentración ------------------------------------------------------------
+
+concentration:
+  position_max: 0.10
+  country_max: 0.35
+  sector_max: 0.30
+  currency_max: 0.40
+  exclude_base_currency: true   # no avisar por exceso de EUR si tu base es EUR
+
+# --- Plan de amortización -----------------------------------------------------
+
+amortization:
+  monthly_contribution: 500
+  dividends_to_debt: true       # los dividendos netos también amortizan
+  dividend_growth: 0.03         # crecimiento anual supuesto del dividendo
+
+# --- Radar de oportunidades ---------------------------------------------------
+
+radar:
+  target_weight: 0.03           # tamaño de referencia para las propuestas de compra
+  candidates:                   # EJEMPLOS: sustitúyelos por tus candidatas
+    - {symbol: VZ, yahoo: VZ}
+    - {symbol: TTE, yahoo: TTE.PA}
+    - {symbol: ALV, yahoo: ALV.DE}
+    - {symbol: LGEN, yahoo: LGEN.L}
+
+# --- Ajustes por valor --------------------------------------------------------
+# Clave = símbolo de IBKR. Todo es opcional:
+#   yahoo: símbolo en Yahoo si no se deduce bien
+#   sector / country: fuerza sector o país (código ISO de 2 letras)
+#   maintenance_rate: margen de mantenimiento propio del valor
+#   criteria: criterios específicos (p. ej., los REIT reparten más del 100 % del beneficio)
+#   per / dividend_yield / payout / debt_ebitda: fija un dato fundamental a mano
+
+symbols:
+  O:
+    sector: Real Estate
+    criteria: {payout_max: null, per_max: null}
+
+# --- Alertas ------------------------------------------------------------------
+
+alerts:
+  channel: telegram       # telegram | console
+  cooldown_hours: 72      # no repetir la misma alerta antes de este plazo

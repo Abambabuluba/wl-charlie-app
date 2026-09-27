@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informe de cartera {{ today.strftime('%d/%m/%Y') }}</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface: #fcfcfb; --panel: #ffffff; --border: #e4e3df;
+    --text: #0b0b0b; --text-2: #52514e; --muted: #8a8984;
+    --good: #0a7a3b; --warn: #a15c00; --bad: #c0362c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--surface); color: var(--text);
+         font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .sub { color: var(--text-2); margin: 0; }
+  .note { color: var(--muted); font-size: 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .kpi .label { color: var(--text-2); font-size: 12px; }
+  .kpi .value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .hint { color: var(--muted); font-size: 11.5px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  img { max-width: 100%; height: auto; display: block; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 5px 8px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th { color: var(--text-2); font-weight: 600; font-size: 12px; }
+  th:first-child, td:first-child, td.l, th.l { text-align: left; }
+  .pos { color: var(--good); } .neg { color: var(--bad); }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 11.5px; border: 1px solid var(--border); }
+  .tag.ok { color: var(--good); } .tag.ko { color: var(--bad); } .tag.na { color: var(--muted); }
+  ul.alerts { padding-left: 18px; } ul.alerts li { margin-bottom: 4px; }
+  .banner { background: #fff7e6; border: 1px solid #f3d9a4; border-radius: 8px; padding: 8px 12px; margin-top: 16px; font-size: 13px; }
+  @media print { h2 { break-after: avoid; } img, table { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Informe semanal de cartera</h1>
+  <p class="sub">Cuenta {{ a.stmt.account_id }} · datos a {{ today.strftime('%d/%m/%Y') }} · generado {{ generated.strftime('%d/%m/%Y %H:%M') }}</p>
+  <div class="banner">Este informe solo analiza y propone. La herramienta no envía órdenes: cualquier operación la decides y ejecutas tú.</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="label">Valor liquidativo</div><div class="value">{{ money(m.net_liquidation) }}</div>
+      <div class="hint">Posiciones {{ money(m.gross_position_value) }}</div></div>
+    <div class="kpi"><div class="label">Préstamo de margen</div><div class="value">{{ money(m.loan) }}</div>
+      <div class="hint">{{ pct(m.loan_to_value) }} de las posiciones</div></div>
+    <div class="kpi"><div class="label">Caída hasta margin call</div><div class="value">{{ pct(m.drop_to_margin_call) }}</div>
+      <div class="hint">Colchón {{ pct(m.cushion) }} · {{ m.margin_source }}</div></div>
+    <div class="kpi"><div class="label">Dividendos netos 12 meses</div><div class="value">{{ money(f.annual_net) }}</div>
+      <div class="hint">≈ {{ money(f.annual_net / 12) }} al mes · bruto {{ money(f.annual_gross) }}</div></div>
+    {% if plan_rows %}
+    <div class="kpi"><div class="label">Deuda amortizada en</div>
+      <div class="value">{% if plan_rows[0][1] %}{{ plan_rows[0][1].strftime('%m/%Y') }}{% else %}nunca{% endif %}</div>
+      <div class="hint">{{ plan_rows[0][0].label }}</div></div>
+    {% endif %}
+  </div>
+
+  {% if recent_alerts %}
+  <h2>Alertas de los últimos 7 días</h2>
+  <ul class="alerts">
+    {% for al in recent_alerts %}<li><span class="note">{{ al['ts'][:16].replace('T', ' ') }}</span> {{ al['message'] }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  <h2>Posiciones</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Valor</th><th class="l">País</th><th class="l">Sector</th><th>Peso</th><th>Valor ({{ cfg.base_currency }})</th>
+      <th>Plusvalía</th><th>Div. anual</th><th>Rent. actual</th><th>Rent. s/coste</th></tr></thead>
+    <tbody>
+    {% for h in a.holdings %}
+      <tr><td><b>{{ h.symbol }}</b> <span class="note">{{ h.currency }}</span></td><td class="l">{{ h.country }}</td><td class="l">{{ h.sector }}</td>
+        <td>{{ pct(h.weight) }}</td><td>{{ money(h.value_base) }}</td>
+        <td class="{{ 'pos' if h.unrealized_base >= 0 else 'neg' }}">{{ money(h.unrealized_base) }} ({{ pct(h.unrealized_pct) }})</td>
+        <td>{{ money(h.annual_dividend_base) }}</td><td>{{ pct(h.current_yield) }}</td><td>{{ pct(h.yield_on_cost) }}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><th>Total</th><th></th><th></th><th></th><th>{{ money(total_value) }}</th>
+      <th>{{ money(total_value - total_cost) }}</th><th>{{ money(f.annual_gross) }}</th>
+      <th>{{ pct(f.annual_gross / total_value if total_value else None) }}</th><th>{{ pct(f.annual_gross / total_cost if total_cost else None) }}</th></tr></tfoot>
+  </table></div>
+  <p class="note">Dividendo anual bruto estimado para los próximos 12 meses con las acciones actuales.{% if f.flat_symbols %} Sin histórico de cobros (estimado con la rentabilidad publicada): {{ f.flat_symbols | join(', ') }}.{% endif %}</p>
+
+  <h2>Diversificación</h2>
+  <div class="grid2">
+    <img src="{{ charts.positions.src }}" style="width: {{ charts.positions.width }}px" alt="Peso por posición">
+    <img src="{{ charts.sectors.src }}" style="width: {{ charts.sectors.width }}px" alt="Exposición por sector">
+    <img src="{{ charts.countries.src }}" style="width: {{ charts.countries.width }}px" alt="Exposición por país">
+    <img src="{{ charts.currencies.src }}" style="width: {{ charts.currencies.width }}px" alt="Exposición por divisa">
+  </div>
+  {% if a.breaches %}
+  <ul class="alerts">{% for b in a.breaches %}<li>Concentración por {{ b.kind }}: <b>{{ b.name }}</b> {{ pct(b.weight) }} (límite {{ pct(b.limit) }})</li>{% endfor %}</ul>
+  {% else %}<p class="note">Ninguna posición, país, sector o divisa supera tus límites.</p>{% endif %}
+
+  <h2>Margen</h2>
+  <div class="scroll"><table>
+    <tbody>
+      <tr><td>Préstamo total</td><td>{{ money(m.loan) }}</td></tr>
+      {% for cur, amount in m.loan_by_currency.items() %}<tr><td>&nbsp;&nbsp;en {{ cur }}</td><td>{{ money(amount) }}</td></tr>{% endfor %}
+      <tr><td>Apalancamiento (posiciones / valor liquidativo)</td><td>{{ '%.2f'|format(m.leverage) if m.leverage else '—' }}×</td></tr>
+      <tr><td>Margen de mantenimiento ({{ m.margin_source }})</td><td>{{ money(m.maintenance_margin) }}</td></tr>
+      <tr><td>Exceso de liquidez</td><td>{{ money(m.excess_liquidity) }}</td></tr>
+      <tr><td>Intereses estimados al año</td><td>{{ money(m.estimated_annual_interest) }} ({{ pct(m.blended_rate) }})</td></tr>
+      <tr><td>Último cargo mensual de intereses (real)</td><td>{{ money(m.interest_last_month) }}</td></tr>
+    </tbody>
+  </table></div>
+  {% if m.margin_source != 'IB Gateway' %}<p class="note">El margen de mantenimiento es una estimación ({{ pct(cfg.margin.maintenance_rate_default, 0) }} por defecto). Para la cifra exacta, consulta IBKR o activa IB Gateway.</p>{% endif %}
+  {% if charts.history %}<img src="{{ charts.history.src }}" style="width: {{ charts.history.width }}px" alt="Evolución del valor liquidativo y del préstamo">{% endif %}
+
+  <h2>Plan de amortización</h2>
+  {% if plan_rows %}
+  <p>Aportación de {{ money(cfg.amortization.monthly_contribution) }} al mes{% if cfg.amortization.dividends_to_debt %}, más los dividendos netos (crecimiento supuesto del {{ pct(cfg.amortization.dividend_growth) }} anual){% endif %}, con un tipo medio del {{ pct(m.blended_rate) }}.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Escenario</th><th>Meses</th><th>Deuda a cero</th><th>Intereses totales</th></tr></thead>
+    <tbody>{% for p, payoff in plan_rows %}
+      <tr><td>{{ p.label }}</td><td>{{ p.months if p.months is not none else '—' }}</td>
+        <td>{{ payoff.strftime('%m/%Y') if payoff else 'no se amortiza' }}</td><td>{{ money(p.total_interest) }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% if charts.plan %}<img src="{{ charts.plan.src }}" style="width: {{ charts.plan.width }}px" alt="Deuda pendiente por escenario">{% endif %}
+  {% if f.annual_net and m.loan %}
+  <p class="note">Cada euro que amortizas deja de costarte un {{ pct(m.blended_rate) }} al año. La rentabilidad neta de tus dividendos sobre el valor actual es del {{ pct(f.annual_net / total_value if total_value else None) }}.</p>
+  {% endif %}
+  {% else %}<p>No tienes préstamo de margen. 🎉</p>{% endif %}
+
+  <h2>Dividendos</h2>
+  <img src="{{ charts.forecast.src }}" style="width: {{ charts.forecast.width }}px" alt="Dividendos netos previstos por mes">
+  <h3>Próximos cobros (60 días)</h3>
+  {% if upcoming %}
+  <div class="scroll"><table>
+    <thead><tr><th>Fecha de pago</th><th class="l">Valor</th><th>Bruto</th><th>Neto</th><th class="l">Estado</th></tr></thead>
+    <tbody>{% for e in upcoming %}
+      <tr><td>{{ e.pay_date.strftime('%d/%m/%Y') }}</td><td class="l">{{ e.symbol }}</td><td>{{ money(e.gross_base) }}</td><td>{{ money(e.net_base) }}</td><td class="l">{{ e.status }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="note">No hay cobros previstos en los próximos 60 días.</p>{% endif %}
+  <p class="note">«anunciado» = declarado por la empresa (dato de IBKR); «estimado» = repetición del pago del año anterior con tus acciones actuales.</p>
+  <img src="{{ charts.received.src }}" style="width: {{ charts.received.width }}px" alt="Dividendos netos cobrados por mes">
+  {% if received_years %}
+  <div class="scroll"><table>
+    <thead><tr><th>Año</th><th>Bruto cobrado</th><th>Neto tras retenciones</th></tr></thead>
+    <tbody>{% for y, (g, n) in received_years.items() %}<tr><td>{{ y }}</td><td>{{ money(g) }}</td><td>{{ money(n) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+
+  <h2>Radar de criterios</h2>
+  <p class="note">Criterios: PER ≤ {{ cfg.criteria.per_max }}, rentabilidad ≥ {{ pct(cfg.criteria.dividend_yield_min) }}, payout ≤ {{ pct(cfg.criteria.payout_max) }}, deuda/EBITDA ≤ {{ cfg.criteria.debt_ebitda_max }} (con los ajustes por valor de config.yaml).</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Valor</th><th class="l">Tipo</th><th>PER</th><th>Rentab.</th><th>Payout</th><th>Deuda/EBITDA</th><th class="l">Estado</th></tr></thead>
+    <tbody>{% for r in a.radar %}
+      {% set fu = r.fundamentals %}
+      <tr><td><b>{{ r.symbol }}</b></td><td class="l">{{ 'posición' if r.role == 'posicion' else r.role }}</td>
+        <td>{{ '%.1f'|format(fu.per) if fu.per is not none else '—' }}</td><td>{{ pct(fu.dividend_yield) }}</td>
+        <td>{{ pct(fu.payout, 0) }}</td><td>{{ '%.1f'|format(fu.debt_ebitda) if fu.debt_ebitda is not none else '—' }}</td>
+        <td class="l">{% if r.status == 'cumple' %}<span class="tag ok">cumple</span>{% elif r.status == 'no_cumple' %}<span class="tag ko">no cumple: {{ r.failing() | map(attribute='name') | join(', ') }}</span>{% else %}<span class="tag na">faltan datos</span>{% endif %}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <p class="note">Fuente de fundamentales: {{ cfg.fundamentals.provider }}. Yahoo es gratuito pero no oficial: comprueba los datos antes de decidir.</p>
+</main>
+</body>
+</html>

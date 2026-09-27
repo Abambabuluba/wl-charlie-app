@@ -1,0 +1,12 @@
+# Añádelo con: crontab -e   (ajusta la ruta del proyecto)
+# El Flex del día anterior suele estar listo de madrugada (hora de Madrid).
+CRON_TZ=Europe/Madrid
+
+# Martes a sábado 07:40: descarga el Flex del día hábil anterior, analiza, guarda y alerta.
+40 7 * * 2-6  /ruta/a/ib-dividend-monitor/deploy/run.sh daily
+
+# Sábado 09:10: informe semanal por Telegram (usa solo lo guardado, no necesita IBKR).
+10 9 * * 6    /ruta/a/ib-dividend-monitor/deploy/run.sh report --send
+
+# Solo si activas IB Gateway: margen en tiempo real cada 30 min en horario de mercado.
+# */30 9-22 * * 1-5  /ruta/a/ib-dividend-monitor/deploy/run.sh margin-live

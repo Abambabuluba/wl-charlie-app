@@ -1,0 +1,78 @@
+import yaml
+
+from divmon.cli import main
+from divmon.storage import Store
+
+from .conftest import FIXTURE, base_config
+
+
+def write_config(tmp_path):
+    cfg = {
+        "data_dir": str(tmp_path / "data"),
+        "fundamentals": {"provider": "none"},
+        "alerts": {"channel": "console", "cooldown_hours": 72},
+        "radar": {"candidates": [{"symbol": "VZ"}]},
+        "symbols": {"VZ": {"per": 9.5, "dividend_yield": 0.064, "payout": 0.6, "debt_ebitda": 2.6}},
+    }
+    path = tmp_path / "config.yaml"
+    path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    return str(path)
+
+
+def run(tmp_path, *args):
+    return main(["--config", write_config(tmp_path), "--env", str(tmp_path / "missing.env"), *args])
+
+
+def test_dry_run_does_not_record_alerts(tmp_path, capsys):
+    assert run(tmp_path, "daily", "--xml", str(FIXTURE), "--dry-run") == 0
+    out = capsys.readouterr().out
+    assert "Valor liquidativo" in out and "VZ cumple" in out
+    store = Store(tmp_path / "data" / "divmon.sqlite")
+    assert store.recent_alerts(__import__("datetime").datetime(2000, 1, 1)) == []
+    assert store.radar_states() == {}
+
+
+def test_daily_then_report_and_plan(tmp_path, capsys):
+    assert run(tmp_path, "daily", "--xml", str(FIXTURE)) == 0
+    store = Store(tmp_path / "data" / "divmon.sqlite")
+    assert len(store.account_history()) == 1
+    assert store.radar_states()["VZ"] == "cumple"
+    assert (tmp_path / "data" / "flex" / "2026-09-25.xml").exists()
+
+    capsys.readouterr()
+    assert run(tmp_path, "daily", "--xml", str(FIXTURE)) == 0
+    assert "Alertas enviadas: 0" in capsys.readouterr().out
+
+    assert run(tmp_path, "report") == 0
+    html = (tmp_path / "data" / "reports" / "informe-2026-09-25.html").read_text(encoding="utf-8")
+    assert "Plan de amortización" in html and "data:image/png;base64" in html
+    assert "no envía órdenes" in html
+
+    assert run(tmp_path, "plan", "--aportacion", "600") == 0
+    assert "600 €" in capsys.readouterr().out
+
+
+def test_missing_flex_credentials_fails_cleanly(tmp_path, capsys, monkeypatch):
+    monkeypatch.delenv("IB_FLEX_TOKEN", raising=False)
+    assert run(tmp_path, "daily", "--dry-run") == 1
+    assert "IB_FLEX_TOKEN" in capsys.readouterr().out
+
+
+def test_config_rejects_unknown_keys(tmp_path):
+    import pytest
+
+    from divmon.config import ConfigError
+
+    with pytest.raises(ConfigError, match="criteria"):
+        base_config(tmp_path, criteria={"per_maximo": 10})
+
+
+def test_import_history_only_adds_transactions(tmp_path, capsys):
+    assert run(tmp_path, "daily", "--xml", str(FIXTURE)) == 0
+    store = Store(tmp_path / "data" / "divmon.sqlite")
+    positions = store.conn.execute("SELECT COUNT(*) FROM position_snapshots").fetchone()[0]
+    assert run(tmp_path, "import-history", str(FIXTURE)) == 0
+    assert len(store.cash_transactions()) > 30
+    assert store.conn.execute("SELECT COUNT(*) FROM position_snapshots").fetchone()[0] == positions == 6
+    assert run(tmp_path, "import-history", str(FIXTURE)) == 0
+    assert "Total: 0" in capsys.readouterr().out
