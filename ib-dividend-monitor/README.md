@@ -66,7 +66,7 @@ En el Portal de IBKR ve a **Rendimiento e informes → Flex Queries** y crea una
 | Cash Report | todos los campos |
 | Cash Transactions | Dividends, Payment In Lieu of Dividends, Withholding Tax, Broker Interest Paid/Received. Nivel de detalle: *Detail* |
 | Open Dividend Accruals | todos los campos |
-| Conversion Rates | todos los campos |
+| Conversion Rates (opcional) | todos los campos. Si no aparece en tu Portal, divmon usa los tipos de cambio de posiciones y movimientos, y si falta alguno lo busca en Yahoo |
 
 Configuración de entrega:
 - Formato **XML**.

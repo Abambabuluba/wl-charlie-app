@@ -97,3 +97,37 @@ def test_fetch_expired_token_has_hint():
     ])
     with pytest.raises(flex.FlexError, match="caducado"):
         flex.fetch_statement_xml("tok", "q1", session=session, sleep=lambda s: None)
+
+
+def _without_conversion_rates(extra_cash: str = "") -> bytes:
+    import re
+
+    from .conftest import FIXTURE
+
+    xml = FIXTURE.read_text(encoding="utf-8")
+    xml = re.sub(r"<ConversionRates>.*?</ConversionRates>", "", xml, flags=re.S)
+    return xml.replace("</CashReport>", extra_cash + "</CashReport>").encode()
+
+
+def test_fx_without_conversion_rates_uses_positions_and_transactions():
+    stmt = flex.parse_statement(_without_conversion_rates(), "EUR")
+    assert stmt.fx_to_base["USD"] == 0.9 and stmt.fx_to_base["GBP"] == 1.18
+    assert stmt.missing_fx() == []
+
+
+def test_missing_fx_is_looked_up_or_ignored():
+    from divmon.service import complete_fx
+
+    cad = '<CashReportCurrency accountId="U1" currency="CAD" levelOfDetail="Currency" endingCash="78.67" />'
+    stmt = flex.parse_statement(_without_conversion_rates(cad), "EUR")
+    assert stmt.missing_fx() == ["CAD"]
+
+    found = complete_fx(stmt, "EUR", lookup=lambda cur, base: 0.62)
+    assert found.fx("CAD") == 0.62 and not found.ignored_cash
+
+    stmt = flex.parse_statement(_without_conversion_rates(cad), "EUR")
+    def offline(cur, base):
+        raise ConnectionError("sin red")
+    ignored = complete_fx(stmt, "EUR", lookup=offline)
+    assert [c.currency for c in ignored.ignored_cash] == ["CAD"]
+    assert "CAD" not in {c.currency for c in ignored.cash}

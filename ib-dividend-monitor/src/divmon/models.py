@@ -98,6 +98,10 @@ class Statement:
     transactions: list[CashTransaction] = field(default_factory=list)
     accruals: list[DividendAccrual] = field(default_factory=list)
     fx_to_base: dict[str, float] = field(default_factory=dict)
+    ignored_cash: list[CashBalance] = field(default_factory=list)   # saldos sin tipo de cambio
+
+    def missing_fx(self) -> list[str]:
+        return sorted({c.currency for c in self.cash if abs(c.ending_cash) > 0.005 and c.currency not in self.fx_to_base})
 
     def fx(self, currency: str) -> float:
         try:
@@ -105,5 +109,5 @@ class Statement:
         except KeyError:
             raise KeyError(
                 f"No hay tipo de cambio {currency}→base en el Flex. "
-                "Añade la sección 'Conversion Rates' a tu Flex Query."
+                "Añade la sección 'Conversion Rates' a tu Flex Query o revisa la conexión con Yahoo."
             ) from None

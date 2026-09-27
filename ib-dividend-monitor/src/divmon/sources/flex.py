@@ -156,6 +156,7 @@ def parse_statement(xml: bytes | str, base_currency: str) -> Statement:
     ]
 
     transactions = []
+    tx_fx: dict[str, tuple[date, float]] = {}
     for r in _rows(stmt, "CashTransactions", "CashTransaction"):
         if r.get("levelOfDetail", "DETAIL").upper() not in {"DETAIL", ""}:
             continue
@@ -164,7 +165,10 @@ def parse_statement(xml: bytes | str, base_currency: str) -> Statement:
         if day is None or amount is None:
             continue
         currency = r.get("currency", base_currency)
-        fx_rate = _num(r.get("fxRateToBase")) or fx.get(currency, 1.0)
+        explicit = _num(r.get("fxRateToBase"))
+        if explicit and (currency not in tx_fx or day >= tx_fx[currency][0]):
+            tx_fx[currency] = (day, explicit)
+        fx_rate = explicit or fx.get(currency, 1.0)
         tid = r.get("transactionID") or hashlib.sha1(
             "|".join([r.get("type", ""), r.get("symbol", ""), str(day), r.get("amount", ""), r.get("description", "")]).encode()
         ).hexdigest()[:16]
@@ -186,6 +190,8 @@ def parse_statement(xml: bytes | str, base_currency: str) -> Statement:
     accruals = []
     for r in _rows(stmt, "OpenDividendAccruals", "OpenDividendAccrual"):
         currency = r.get("currency", base_currency)
+        if _num(r.get("fxRateToBase")):
+            tx_fx.setdefault(currency, (date.min, _num(r.get("fxRateToBase"))))
         accruals.append(
             DividendAccrual(
                 conid=r.get("conid", ""),
@@ -201,12 +207,10 @@ def parse_statement(xml: bytes | str, base_currency: str) -> Statement:
             )
         )
 
-    for c in cash:
-        if c.currency not in fx and abs(c.ending_cash) > 0.005:
-            raise ValueError(
-                f"No hay tipo de cambio para el saldo en {c.currency}. "
-                "Añade la sección 'Conversion Rates' a tu Flex Query."
-            )
+    # Sin la sección Conversion Rates, se usan los tipos explícitos que IBKR pone en dividendos,
+    # intereses y dividendos anunciados (el más reciente de cada divisa).
+    for currency, (_, rate) in tx_fx.items():
+        fx.setdefault(currency, rate)
 
     return Statement(
         account_id=stmt.get("accountId", ""),

@@ -17,7 +17,9 @@ from divmon.analytics.radar import CANDIDATE, HOLDING, INCOMPLETE, RadarResult, 
 from divmon.config import Config
 from divmon.models import CashTransaction, Statement
 from divmon.sources.flex import fetch_statement_xml, parse_statement
-from divmon.sources.fundamentals import Fundamentals, FundamentalsProvider, make_provider, yahoo_symbol
+from divmon.sources.fundamentals import (
+    Fundamentals, FundamentalsProvider, make_provider, yahoo_fx_rate, yahoo_symbol,
+)
 from divmon.storage import Store
 
 log = logging.getLogger(__name__)
@@ -45,8 +47,26 @@ def archive_path(cfg: Config, report_date: date) -> Path:
     return cfg.flex_dir / f"{report_date.isoformat()}.xml"
 
 
+def complete_fx(stmt: Statement, base_currency: str, lookup=None) -> Statement:
+    """Busca en Yahoo los tipos de cambio que no trae el Flex; si no hay, aparta ese saldo."""
+    lookup = lookup or yahoo_fx_rate
+    for currency in stmt.missing_fx():
+        try:
+            rate = lookup(currency, base_currency)
+        except Exception as exc:
+            log.warning("Sin tipo de cambio %s→%s: %s", currency, base_currency, exc)
+            rate = None
+        if rate:
+            stmt.fx_to_base[currency] = rate
+    if stmt.missing_fx():
+        missing = set(stmt.missing_fx())
+        stmt.ignored_cash = [c for c in stmt.cash if c.currency in missing]
+        stmt.cash = [c for c in stmt.cash if c.currency not in missing]
+    return stmt
+
+
 def _archive(cfg: Config, xml: bytes) -> Statement:
-    stmt = parse_statement(xml, cfg.base_currency)
+    stmt = complete_fx(parse_statement(xml, cfg.base_currency), cfg.base_currency)
     path = archive_path(cfg, stmt.report_date)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(xml)
@@ -66,7 +86,7 @@ def import_statement(cfg: Config, path: Path) -> Statement:
 
 
 def load_statement_file(cfg: Config, path: Path) -> Statement:
-    return parse_statement(Path(path).read_bytes(), cfg.base_currency)
+    return complete_fx(parse_statement(Path(path).read_bytes(), cfg.base_currency), cfg.base_currency)
 
 
 def latest_archived_statement(cfg: Config) -> Statement:

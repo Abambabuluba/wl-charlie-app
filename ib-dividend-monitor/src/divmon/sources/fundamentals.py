@@ -110,6 +110,15 @@ class YahooProvider:
         )
 
 
+def yahoo_fx_rate(currency: str, base: str) -> float | None:
+    """Tipo de cambio de ``currency`` a ``base`` en Yahoo (por ejemplo CADEUR=X)."""
+    import yfinance as yf
+
+    ticker = yf.Ticker(f"{currency}{base}=X")
+    rate = _positive(getattr(ticker.fast_info, "last_price", None))
+    return rate or _positive((ticker.info or {}).get("regularMarketPrice"))
+
+
 class NullProvider:
     """Sin proveedor externo: solo cuenta lo que pongas a mano en config.yaml."""
 

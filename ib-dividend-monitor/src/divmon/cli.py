@@ -49,6 +49,12 @@ def _run_analysis(cfg: Config, store: Store, xml: Path | None) -> tuple[Analysis
         log.error("No se pudo obtener el informe Flex: %s", exc)
         return None, [Alert("flex:error", WARNING, f"No se pudo descargar el informe Flex de IBKR: {exc}")]
     store.save_statement(stmt)
+    for c in stmt.ignored_cash:
+        warnings.append(Alert(
+            f"fx:{c.currency}", WARNING,
+            f"No encuentro el tipo de cambio de {c.currency}; ignoro ese saldo ({c.ending_cash:,.2f} {c.currency}). "
+            "Añade 'Conversion Rates' a tu Flex Query para evitarlo.",
+        ))
     history = store.cash_transactions()
     fundamentals = refresh_fundamentals(cfg, store, stmt)
 
