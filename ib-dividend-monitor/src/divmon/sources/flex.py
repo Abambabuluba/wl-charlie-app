@@ -149,10 +149,12 @@ def parse_statement(xml: bytes | str, base_currency: str) -> Statement:
             )
         )
 
+    # Los restos de céntimo en divisas antiguas (p. ej. 0.0003 HKD) no aportan nada y no
+    # suelen tener tipo de cambio en el informe: se descartan.
     cash = [
-        CashBalance(currency=r["currency"], ending_cash=_num(r.get("endingCash")) or 0.0)
+        CashBalance(currency=r["currency"], ending_cash=round(_num(r.get("endingCash")) or 0.0, 2))
         for r in _rows(stmt, "CashReport", "CashReportCurrency")
-        if r.get("currency") and r["currency"] != "BASE_SUMMARY"
+        if r.get("currency") and r["currency"] != "BASE_SUMMARY" and abs(_num(r.get("endingCash")) or 0.0) >= 0.01
     ]
 
     transactions = []

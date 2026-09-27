@@ -115,6 +115,14 @@ def test_fx_without_conversion_rates_uses_positions_and_transactions():
     assert stmt.missing_fx() == []
 
 
+def test_dust_balances_are_dropped():
+    dust = ('<CashReportCurrency currency="HKD" levelOfDetail="Currency" endingCash="0.000253604" />'
+            '<CashReportCurrency currency="NOK" levelOfDetail="Currency" endingCash="-0.000433465" />')
+    stmt = flex.parse_statement(_without_conversion_rates(dust), "EUR")
+    assert {c.currency for c in stmt.cash} == {"EUR", "USD"}
+    assert stmt.missing_fx() == []
+
+
 def test_missing_fx_is_looked_up_or_ignored():
     from divmon.service import complete_fx
 

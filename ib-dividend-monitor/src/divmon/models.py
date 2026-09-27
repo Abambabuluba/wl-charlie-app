@@ -101,7 +101,7 @@ class Statement:
     ignored_cash: list[CashBalance] = field(default_factory=list)   # saldos sin tipo de cambio
 
     def missing_fx(self) -> list[str]:
-        return sorted({c.currency for c in self.cash if abs(c.ending_cash) > 0.005 and c.currency not in self.fx_to_base})
+        return sorted({c.currency for c in self.cash if c.ending_cash and c.currency not in self.fx_to_base})
 
     def fx(self, currency: str) -> float:
         try:
