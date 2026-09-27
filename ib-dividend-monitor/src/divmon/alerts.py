@@ -33,6 +33,7 @@ class Alert:
     key: str
     severity: str
     text: str
+    cooldown_hours: float | None = None   # si no se indica, el general de alerts.cooldown_hours
 
 
 def pct(value: float | None, digits: int = 1) -> str:
@@ -84,11 +85,12 @@ def margin_alerts(m: MarginStatus, cfg: Config) -> list[Alert]:
     return out
 
 
-def concentration_alerts(breaches: list[Breach]) -> list[Alert]:
+def concentration_alerts(breaches: list[Breach], cooldown_hours: float | None = None) -> list[Alert]:
     return [
         Alert(
             f"conc:{b.kind}:{b.name}", WARNING,
             f"Concentración por {b.kind}: {b.name} pesa {pct(b.weight)} (límite {pct(b.limit)}).",
+            cooldown_hours,
         )
         for b in breaches
     ]
@@ -268,7 +270,8 @@ def dispatch(
     fresh = []
     for a in alerts:
         last = store.last_alert_time(a.key)
-        if last is None or now - last >= timedelta(hours=cooldown_hours):
+        wait = a.cooldown_hours if a.cooldown_hours is not None else cooldown_hours
+        if last is None or now - last >= timedelta(hours=wait):
             fresh.append(a)
     if not fresh:
         return []

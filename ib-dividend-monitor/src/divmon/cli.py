@@ -98,7 +98,7 @@ def cmd_daily(cfg: Config, args) -> int:
         return 0
     sent = dispatch(alerts, store, notifier, cfg.alerts.cooldown_hours)
     persist(store, analysis)
-    print(f"\nAlertas enviadas: {len(sent)} de {len(alerts)} (el resto ya se avisó hace menos de {cfg.alerts.cooldown_hours:.0f} h)")
+    print(f"\nAlertas enviadas: {len(sent)} de {len(alerts)} (el resto ya se avisó hace poco)")
     return 0
 
 

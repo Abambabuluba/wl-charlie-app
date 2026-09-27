@@ -53,6 +53,7 @@ concentration:
   sector_max: 0.30
   currency_max: 0.40
   exclude_base_currency: true   # no avisar por exceso de EUR si tu base es EUR
+  cooldown_hours: 168           # repetir estos avisos como mucho una vez por semana
 
 # --- Plan de amortización -----------------------------------------------------
 

@@ -175,7 +175,7 @@ def build_alerts(cfg: Config, analysis: Analysis, previous_radar: dict[str, str]
     alerts = [
         *analysis.warnings,
         *margin_alerts(analysis.margin, cfg),
-        *concentration_alerts(analysis.breaches),
+        *concentration_alerts(analysis.breaches, cfg.concentration.cooldown_hours),
         *radar_alerts(changes, cfg, analysis.stmt, analysis.margin),
     ]
     return alerts, changes

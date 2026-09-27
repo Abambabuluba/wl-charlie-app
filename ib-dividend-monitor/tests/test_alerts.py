@@ -101,3 +101,15 @@ def test_email_alerts_and_report(tmp_path):
     assert msg["Subject"] == "Informe semanal"
     (att,) = list(msg.iter_attachments())
     assert att.get_filename() == "informe.html"
+
+
+def test_concentration_alerts_use_their_own_cooldown():
+    from divmon.alerts import concentration_alerts
+    from divmon.analytics.concentration import Breach
+
+    store, out = Store(":memory:"), Collect()
+    alerts = concentration_alerts([Breach("posición", "KSPI", 0.77, 0.10)], cooldown_hours=168)
+    now = datetime(2026, 9, 27, 8, 0)
+    assert len(dispatch(alerts, store, out, 72, now=now)) == 1
+    assert dispatch(alerts, store, out, 72, now=now + timedelta(days=4)) == []
+    assert len(dispatch(alerts, store, out, 72, now=now + timedelta(days=7))) == 1

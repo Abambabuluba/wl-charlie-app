@@ -95,6 +95,7 @@ class ConcentrationConfig:
     sector_max: float | None = 0.30
     currency_max: float | None = 0.40
     exclude_base_currency: bool = True
+    cooldown_hours: float = 168   # la concentración cambia despacio: como mucho un aviso semanal
 
 
 @dataclass
