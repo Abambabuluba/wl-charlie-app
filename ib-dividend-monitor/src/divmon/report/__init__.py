@@ -21,7 +21,7 @@ def _add_months(d: date, months: int) -> date:
     return date(d.year + y, m + 1, 1)
 
 
-def build_context(cfg: Config, analysis: Analysis, store: Store) -> dict:
+def build_context(cfg: Config, analysis: Analysis, store: Store, news: dict | None = None) -> dict:
     a, m, f = analysis, analysis.margin, analysis.forecast
     today = a.stmt.report_date
     lim = cfg.concentration
@@ -79,18 +79,20 @@ def build_context(cfg: Config, analysis: Analysis, store: Store) -> dict:
             "history": history_chart,
         },
         "plan_rows": [(p, p.payoff_date(today)) for p in a.plans],
+        "news": {h.symbol: news[h.symbol] for h in a.holdings if news and news.get(h.symbol)},
+        "news_checked": news is not None,
     }
 
 
-def render_html(cfg: Config, analysis: Analysis, store: Store) -> str:
+def render_html(cfg: Config, analysis: Analysis, store: Store, news: dict | None = None) -> str:
     env = Environment(loader=PackageLoader("divmon", "report/templates"), autoescape=select_autoescape(["j2", "html"]))
-    return env.get_template("weekly.html.j2").render(**build_context(cfg, analysis, store))
+    return env.get_template("weekly.html.j2").render(**build_context(cfg, analysis, store, news))
 
 
-def write_report(cfg: Config, analysis: Analysis, store: Store, pdf: bool = False) -> Path:
+def write_report(cfg: Config, analysis: Analysis, store: Store, pdf: bool = False, news: dict | None = None) -> Path:
     cfg.reports_dir.mkdir(parents=True, exist_ok=True)
     stem = cfg.reports_dir / f"informe-{analysis.stmt.report_date.isoformat()}"
-    html_text = render_html(cfg, analysis, store)
+    html_text = render_html(cfg, analysis, store, news)
     html_path = stem.with_suffix(".html")
     html_path.write_text(html_text, encoding="utf-8")
     if not pdf:

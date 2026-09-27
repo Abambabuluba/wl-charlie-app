@@ -10,6 +10,7 @@ def write_config(tmp_path):
     cfg = {
         "data_dir": str(tmp_path / "data"),
         "fundamentals": {"provider": "none"},
+        "news": {"enabled": False},
         "alerts": {"channel": "console", "cooldown_hours": 72},
         "radar": {"candidates": [{"symbol": "VZ"}]},
         "symbols": {"VZ": {"per": 9.5, "dividend_yield": 0.064, "payout": 0.6, "debt_ebitda": 2.6}},

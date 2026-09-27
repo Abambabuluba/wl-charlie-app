@@ -148,6 +148,19 @@
   </table></div>
   {% endif %}
 
+  {% if news_checked %}
+  <h2>Noticias de tus posiciones (últimos {{ cfg.news.max_age_days }} días)</h2>
+  {% if news %}
+    {% for symbol, items in news.items() %}
+    <h3>{{ symbol }}</h3>
+    <ul class="alerts">
+      {% for n in items %}<li><a href="{{ n.url }}">{{ n.title }}</a> <span class="note">· {{ n.publisher }} · {{ n.published.strftime('%d/%m') }}</span></li>{% endfor %}
+    </ul>
+    {% endfor %}
+    <p class="note">Titulares de Yahoo Finance, normalmente en inglés. Son informativos: no es una recomendación.</p>
+  {% else %}<p class="note">No hay noticias recientes de tus posiciones en Yahoo Finance.</p>{% endif %}
+  {% endif %}
+
   <h2>Radar de criterios</h2>
   <p class="note">Criterios: PER ≤ {{ cfg.criteria.per_max }}, rentabilidad ≥ {{ pct(cfg.criteria.dividend_yield_min) }}, payout ≤ {{ pct(cfg.criteria.payout_max) }}, deuda/EBITDA ≤ {{ cfg.criteria.debt_ebitda_max }} (con los ajustes por valor de config.yaml).</p>
   <div class="scroll"><table>

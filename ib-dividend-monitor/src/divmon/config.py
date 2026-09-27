@@ -112,6 +112,14 @@ class RadarConfig:
 
 
 @dataclass
+class NewsConfig:
+    enabled: bool = True
+    max_per_symbol: int = 4
+    max_age_days: int = 7
+    min_weight: float = 0.01   # no buscar noticias de restos como NACON
+
+
+@dataclass
 class AlertsConfig:
     channel: str = "telegram"
     cooldown_hours: float = 72
@@ -137,6 +145,7 @@ class Config:
     amortization: AmortizationConfig = field(default_factory=AmortizationConfig)
     radar: RadarConfig = field(default_factory=RadarConfig)
     symbols: dict[str, SymbolOverride] = field(default_factory=dict)
+    news: NewsConfig = field(default_factory=NewsConfig)
     alerts: AlertsConfig = field(default_factory=AlertsConfig)
 
     @property
@@ -227,6 +236,7 @@ def config_from_dict(raw: dict[str, Any], base_dir: Path = Path(".")) -> Config:
         amortization=_build(AmortizationConfig, raw.pop("amortization", None), "amortization"),
         radar=radar,
         symbols=symbols,
+        news=_build(NewsConfig, raw.pop("news", None), "news"),
         alerts=alerts,
     )
     if raw:

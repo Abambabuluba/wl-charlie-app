@@ -16,6 +16,7 @@ from divmon.service import (
     Analysis, analyze, build_alerts, download_statement, import_statement, latest_archived_statement,
     load_statement_file, persist, refresh_fundamentals,
 )
+from divmon.sources.fundamentals import yahoo_symbol
 from divmon.storage import Store
 
 log = logging.getLogger("divmon")
@@ -109,7 +110,17 @@ def cmd_report(cfg: Config, args) -> int:
     stmt = load_statement_file(cfg, args.xml) if args.xml else latest_archived_statement(cfg)
     history = store.cash_transactions()
     analysis = analyze(cfg, stmt, history, refresh_fundamentals(cfg, store, stmt))
-    path = write_report(cfg, analysis, store, pdf=args.pdf)
+    news = None
+    if cfg.news.enabled:
+        from divmon.sources.news import news_for
+
+        symbols = {
+            h.symbol: yahoo_symbol(h.symbol, p.listing_exchange, cfg.symbols.get(h.symbol))
+            for h in analysis.holdings if h.weight >= cfg.news.min_weight
+            for p in stmt.positions if p.symbol == h.symbol
+        }
+        news = news_for(symbols, cfg.news.max_per_symbol, cfg.news.max_age_days)
+    path = write_report(cfg, analysis, store, pdf=args.pdf, news=news)
     print(f"Informe generado: {path}")
     if args.send:
         make_notifier(cfg).send_report(

@@ -85,6 +85,14 @@ symbols:
     sector: Real Estate
     criteria: {payout_max: null, per_max: null}
 
+# --- Noticias (informe semanal) ----------------------------------------------
+
+news:
+  enabled: true
+  max_per_symbol: 4       # titulares por valor
+  max_age_days: 7
+  min_weight: 0.01        # ignora posiciones que pesen menos del 1 %
+
 # --- Alertas ------------------------------------------------------------------
 
 alerts:
