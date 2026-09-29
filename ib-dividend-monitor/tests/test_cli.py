@@ -42,7 +42,9 @@ def test_daily_then_report_and_plan(tmp_path, capsys):
 
     capsys.readouterr()
     assert run(tmp_path, "daily", "--xml", str(FIXTURE)) == 0
-    assert "Alertas enviadas: 0" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "Alertas nuevas enviadas: 0" in out
+    assert "Todo en orden, sin avisos nuevos" in out and "ya enviados siguen vigentes" in out
 
     assert run(tmp_path, "report") == 0
     html = (tmp_path / "data" / "reports" / "informe-2026-09-25.html").read_text(encoding="utf-8")
@@ -93,3 +95,23 @@ def test_email_channel_requires_credentials(tmp_path, monkeypatch):
     monkeypatch.setenv("SMTP_PASSWORD", "abcd efgh ijkl mnop")
     cfg = base_config(tmp_path, alerts={"channel": "email"})
     assert make_notifier(cfg).to == "yo@gmail.com"
+
+
+def test_daily_digest_with_alerts(tmp_path, capsys):
+    assert run(tmp_path, "daily", "--xml", str(FIXTURE)) == 0
+    out = capsys.readouterr().out
+    assert "avisos nuevos</b>" in out and "<b>Avisos nuevos</b>" in out
+    assert "Próximo dividendo: MO 10/10" in out
+    assert "Deuda a cero:" in out
+
+
+def test_daily_without_summary_is_silent_when_nothing_new(tmp_path, capsys):
+    cfg_path = write_config(tmp_path)
+    data = yaml.safe_load(open(cfg_path))
+    data["alerts"]["daily_summary"] = False
+    open(cfg_path, "w").write(yaml.safe_dump(data))
+    args = ["--config", cfg_path, "--env", str(tmp_path / "x.env"), "daily", "--xml", str(FIXTURE)]
+    assert main(args) == 0
+    capsys.readouterr()
+    assert main(args) == 0
+    assert "Cartera IBKR" not in capsys.readouterr().out.split("Alertas nuevas")[0].split("Próximos cobros")[-1]

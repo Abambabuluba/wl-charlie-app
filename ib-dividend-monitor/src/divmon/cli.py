@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import html
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from divmon.alerts import (
-    Alert, ConsoleNotifier, WARNING, dispatch, make_notifier, margin_alerts, money, pct,
+    CRITICAL, WARNING, Alert, ConsoleNotifier, dispatch, format_alert, fresh_alerts, make_notifier, margin_alerts,
+    money, pct, record,
 )
 from divmon.analytics.amortization import simulate
 from divmon.config import Config, load_config
@@ -77,6 +80,40 @@ def _run_analysis(cfg: Config, store: Store, xml: Path | None) -> tuple[Analysis
     return analysis, warnings
 
 
+def daily_digest(cfg: Config, a: Analysis, fresh: list[Alert], pending: int, previous_loan: float | None) -> str:
+    """Correo diario: estado en una línea, cifras clave y, si hay, los avisos nuevos."""
+    m, cur = a.margin, cfg.base_currency
+    if any(x.severity == CRITICAL for x in fresh):
+        status = f"🔴 {len(fresh)} aviso{'s' if len(fresh) > 1 else ''}, alguno crítico"
+    elif fresh:
+        status = f"🟠 {len(fresh)} aviso{'s' if len(fresh) > 1 else ''} nuevo{'s' if len(fresh) > 1 else ''}"
+    else:
+        status = "✅ Todo en orden, sin avisos nuevos"
+    loan = f"Préstamo {money(m.loan, cur)}"
+    if previous_loan is not None and abs(previous_loan - m.loan) >= 1:
+        diff = m.loan - previous_loan
+        loan += f" ({'+' if diff > 0 else '−'}{money(abs(diff), cur)} desde el último resumen)"
+    lines = [
+        f"<b>Cartera IBKR {a.stmt.report_date:%d/%m}: {status}</b>",
+        f"• Colchón {pct(m.cushion)} · caída hasta margin call {pct(m.drop_to_margin_call)}",
+        f"• {loan}",
+        f"• Valor liquidativo {money(m.net_liquidation, cur)}",
+    ]
+    nxt = a.forecast.upcoming(60)
+    if nxt:
+        e = nxt[0]
+        lines.append(f"• Próximo dividendo: {e.symbol} {e.pay_date:%d/%m} · {money(e.net_base, cur)} neto")
+    if a.plans:
+        p = a.plans[0]
+        payoff = p.payoff_date(a.stmt.report_date)
+        lines.append(f"• Deuda a cero: {payoff:%m/%Y} ({p.months} meses)" if payoff else "• Deuda a cero: no se amortiza con estos supuestos")
+    if fresh:
+        lines += ["", "<b>Avisos nuevos</b>", *map(format_alert, fresh)]
+    if pending:
+        lines.append(f"\n{pending} aviso{'s' if pending > 1 else ''} ya enviado{'s' if pending > 1 else ''} sigue{'n' if pending > 1 else ''} vigente{'s' if pending > 1 else ''}.")
+    return "\n".join(html.escape(l) if not l.startswith(("<b>", "•", "🔴")) else l for l in lines)
+
+
 def cmd_daily(cfg: Config, args) -> int:
     store = Store(cfg.db_path)
     notifier = ConsoleNotifier() if args.dry_run else make_notifier(cfg)
@@ -97,9 +134,18 @@ def cmd_daily(cfg: Config, args) -> int:
         if not alerts:
             print("  (ninguna)")
         return 0
-    sent = dispatch(alerts, store, notifier, cfg.alerts.cooldown_hours)
+    now = datetime.now()
+    if cfg.alerts.daily_summary:
+        fresh = fresh_alerts(alerts, store, cfg.alerts.cooldown_hours, now)
+        earlier = [r for r in store.account_history() if r["date"] < analysis.stmt.report_date.isoformat()]
+        previous_loan = earlier[-1]["loan"] if earlier else None
+        notifier.send(daily_digest(cfg, analysis, fresh, len(alerts) - len(fresh), previous_loan))
+        record(store, fresh, now)
+        sent = fresh
+    else:
+        sent = dispatch(alerts, store, notifier, cfg.alerts.cooldown_hours, now=now)
     persist(store, analysis)
-    print(f"\nAlertas enviadas: {len(sent)} de {len(alerts)} (el resto ya se avisó hace poco)")
+    print(f"\nAlertas nuevas enviadas: {len(sent)} de {len(alerts)} (el resto ya se avisó hace poco)")
     return 0
 
 

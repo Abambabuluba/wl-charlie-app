@@ -123,6 +123,7 @@ class NewsConfig:
 class AlertsConfig:
     channel: str = "telegram"
     cooldown_hours: float = 72
+    daily_summary: bool = True   # correo diario aunque no haya alertas, para saber que todo funciona
     telegram_token: str | None = None
     telegram_chat_id: str | None = None
     smtp_host: str = "smtp.gmail.com"

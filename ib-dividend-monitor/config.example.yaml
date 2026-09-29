@@ -100,3 +100,4 @@ alerts:
   # smtp_host: smtp.gmail.com   # por defecto Gmail; cámbialo si usas otro proveedor
   # smtp_port: 465
   cooldown_hours: 72      # no repetir la misma alerta antes de este plazo
+  daily_summary: true     # correo diario aunque no haya alertas (false = solo cuando haya algo nuevo)

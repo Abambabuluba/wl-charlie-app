@@ -257,6 +257,26 @@ def make_notifier(cfg: Config) -> Notifier:
     return TelegramNotifier(a.telegram_token, a.telegram_chat_id)
 
 
+def fresh_alerts(alerts: list[Alert], store: Store, cooldown_hours: float, now: datetime) -> list[Alert]:
+    """Alertas que no se han enviado dentro de su periodo de enfriamiento, las críticas primero."""
+    fresh = []
+    for a in alerts:
+        last = store.last_alert_time(a.key)
+        wait = a.cooldown_hours if a.cooldown_hours is not None else cooldown_hours
+        if last is None or now - last >= timedelta(hours=wait):
+            fresh.append(a)
+    return sorted(fresh, key=lambda a: a.severity != CRITICAL)
+
+
+def format_alert(a: Alert) -> str:
+    return f"{'🔴' if a.severity == CRITICAL else '•'} {html.escape(a.text)}"
+
+
+def record(store: Store, sent: list[Alert], now: datetime) -> None:
+    for a in sent:
+        store.log_alert(a.key, a.severity, a.text, delivered=True, ts=now)
+
+
 def dispatch(
     alerts: list[Alert],
     store: Store,
@@ -267,19 +287,10 @@ def dispatch(
 ) -> list[Alert]:
     """Envía en un único mensaje las alertas que no se hayan enviado dentro del periodo de enfriamiento."""
     now = now or datetime.now()
-    fresh = []
-    for a in alerts:
-        last = store.last_alert_time(a.key)
-        wait = a.cooldown_hours if a.cooldown_hours is not None else cooldown_hours
-        if last is None or now - last >= timedelta(hours=wait):
-            fresh.append(a)
+    fresh = fresh_alerts(alerts, store, cooldown_hours, now)
     if not fresh:
         return []
-    fresh.sort(key=lambda a: a.severity != CRITICAL)
     heading = f"{'🔴 ' if fresh[0].severity == CRITICAL else ''}{title}: {len(fresh)} aviso{'s' if len(fresh) > 1 else ''}"
-    lines = [f"<b>{html.escape(heading)}</b>"]
-    lines += [f"{'🔴' if a.severity == CRITICAL else '•'} {html.escape(a.text)}" for a in fresh]
-    notifier.send("\n\n".join(lines))
-    for a in fresh:
-        store.log_alert(a.key, a.severity, a.text, delivered=True, ts=now)
+    notifier.send("\n\n".join([f"<b>{html.escape(heading)}</b>", *map(format_alert, fresh)]))
+    record(store, fresh, now)
     return fresh
